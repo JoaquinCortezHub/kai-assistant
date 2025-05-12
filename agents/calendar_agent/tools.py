@@ -144,7 +144,7 @@ class GoogleCalendarTools(Toolkit):
 
         self.service = build('calendar', 'v3', credentials=self.creds)
 
-    def create_event(self, summary, start_time, end_time, description=None, location=None):
+    def create_event(self, summary, start_time, end_time, description=None, location=None, session_state=None):
         """
         Creates a new event in the user's Google Calendar.
         
@@ -154,6 +154,7 @@ class GoogleCalendarTools(Toolkit):
         - end_time (str/datetime): When the event ends (can be ISO format string or datetime)
         - description (str, optional): Detailed description of the event
         - location (str, optional): Where the event takes place
+        - session_state: is the state of the previous conversation and can be used as context for the current run.
         
         Returns:
         - str: Success message with the event link if successful (format: "Event created successfully: https://calendar.google.com/...")
@@ -221,20 +222,31 @@ class GoogleCalendarTools(Toolkit):
         try:
             event = self.service.events().insert(calendarId='primary', body=event).execute()
             link = event.get('htmlLink')
-            formatted_link = f"\033]8;;{link}\033\\{link}\033]8;;\033\\"
             logger.info(f"Event created successfully with link: {link}")
-            return f"Event created successfully: {formatted_link}"
+            
+            #Manages session state for context.
+            if session_state is not None:
+                session_state["last_event_created"] = {
+                    "summary": summary,
+                    "start_time": start_datetime,
+                    "end_time": end_datetime,
+                    "description": description,
+                    "location": location,
+                    "link": link
+                }
+            
+            return f"Event created successfully: {link}"
         except Exception as e:
             logger.error(f"Failed to create event: {str(e)}")
             return f"Failed to create event: {str(e)}"
 
-    def list_upcoming_events(self, max_results=10):
+    def list_upcoming_events(self, max_results=10, session_state=None):
         """
         Retrieves a list of upcoming calendar events.
         
         Parameters:
         - max_results (int, optional): Maximum number of events to return (default: 10)
-        
+        - session_state: variable containing the current session state, can be used as context if required in the current run.
         Returns:
         - str: "No upcoming events found." if no events exist
         - list: List of event dictionaries if successful, each containing:
@@ -286,12 +298,15 @@ class GoogleCalendarTools(Toolkit):
             for event in events:
                 if 'htmlLink' in event:
                     link = event['htmlLink']
-                    formatted_link = f"\033]8;;{link}\033\\{link}\033]8;;\033\\"
-                    event['htmlLink'] = formatted_link
                     # Log the original link for debugging
                     logger.info(f"Event link found: {link}")
-            
+                    event['htmlLink'] = link
+
             logger.info(f"API call successful, found {len(events)} events")
+            
+            if session_state is not None:
+                session_state["last_events_listed"] = events
+            
             return events
         except Exception as e:
             logger.error(f"Failed to retrieve events: {str(e)}")
@@ -357,9 +372,8 @@ class GoogleCalendarTools(Toolkit):
             ).execute()
             
             link = updated_event.get('htmlLink')
-            formatted_link = f"\033]8;;{link}\033\\{link}\033]8;;\033\\"
             logger.info(f"Event updated successfully with link: {link}")
-            return f"Event updated successfully: {formatted_link}"
+            return f"Event updated successfully: {link}"
         except Exception as e:
             logger.error(f"Failed to update event: {str(e)}")
             return f"Failed to update event: {str(e)}"

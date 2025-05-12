@@ -9,6 +9,7 @@ from agno.models.openai import OpenAIChat
 from textwrap import dedent
 from agents import CalendarAgent
 from agents.calendar_agent.tools import GoogleCalendarTools
+from agno.storage.sqlite import SqliteStorage
 
 load_dotenv()
 
@@ -22,6 +23,7 @@ calendar_agent = CalendarAgent()
 KAI = Agent(
     name="KAI",
     model=OpenAIChat("gpt-4.1"),
+    session_state={"events": []},
     instructions=dedent("""\
         You are KAI, Joa's personal AI assistant manager. Your role is to coordinate and manage different aspects of Joa's life through specialized sub-agents.
 
@@ -120,10 +122,16 @@ KAI = Agent(
         2. Clearly state your intended action
         3. If delegating, specify the agent and reason
         4. End with a clear next step or question if needed
+        
+        STATE:
+        current calendar events: {events}
     """),
     tools=[GoogleCalendarTools()],
     markdown=True,
     show_tool_calls=True,
+    add_state_in_messages= True,
+    session_id="calendar_session",
+    storage= SqliteStorage(table_name="agent_sessions", db_file="calendar.db"),
     debug_mode=True,
 )
 
@@ -140,7 +148,7 @@ async def main():
             
             # Check for exit command
             if user_input.lower() in ("exit", "chau", "salir"):
-                print("\n¡Hasta luego! 👋\n")
+                print("\nNos vemos! 👋\n")
                 break
             
             # Get KAI's response using print_response
@@ -157,4 +165,4 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\n\n¡Hasta luego! 👋\n")
+        print("\n\nNos vemos! 👋\n")

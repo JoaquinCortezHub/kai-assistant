@@ -15,5 +15,6 @@ dependencies = [
     "python-dotenv>=1.1.0",
     "pytz>=2025.2",
     "setuptools>=80.0.0",
+    "sqlalchemy>=2.0.40",
     "twilio>=9.5.2",
 ]
